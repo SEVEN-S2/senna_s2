@@ -3,8 +3,7 @@ import chalk from 'chalk'
 import { fileURLToPath } from 'url'
 
 global.owner = [
-  ['258879116693', '🇯🇵𝙶𝙷𝙾𝚂𝚃 𝙶𝚄𝙼𝙱𝙰𝙻𝙻 ╰⁔╯', true],
-  ['159034049044504', '🇯🇵𝙶𝙷𝙾𝚂𝚃 𝙶𝚄𝙼𝙱𝙰𝙻𝙻 (LID) ╰⁔╯', true]
+  ['25875942284', 'SEVEN', true]
 ]
 
 global.mods = []
@@ -21,10 +20,10 @@ global.APIKeys = {
   'https://api.fgmods.xyz': 'shen'
 }
 
-global.packname = 'DYLUX BOT S2┃ᴮᴼᵀ'
-global.author = '🇯🇵𝙶𝙷𝙾𝚂𝚃 𝙶𝚄𝙼𝙱𝙰𝙻𝙻 ╰⁔╯'
+global.packname = 'SEVEN WITH BOTILSON┃ᴮᴼᵀ'
+global.author = 'SEVEN'
 
-global.botName = 'DYLUX BOT S2'
+global.botName = 'SEVEN WITH BOTILSON'
 global.fg_ig = 'https://www.instagram.com/wotersan1?igsh=MWluaWl0OXd5aHdlOA=='
 global.fg_sc = 'https://github.com/Gumballxnz'
 global.fg_yt = 'https://www.youtube.com/@wotersangumball'
