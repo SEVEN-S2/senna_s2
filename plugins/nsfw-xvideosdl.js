@@ -36,11 +36,11 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
 
 }
 handler.help = ['xvideos <busca|link>', 'xvideodl <link>']
-handler.tags = ['nsfw', 'prem']
+handler.tags = ['nsfw']
 handler.command = ['xvideossearch', 'xvideo', 'xvideos', 'xvideodl']
 
 handler.group = false
-handler.premium = true
+handler.premium = false
 handler.register = false
 
 export default handler
