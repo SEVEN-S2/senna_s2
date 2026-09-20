@@ -7,11 +7,11 @@ let handler = async (m, { conn }) => {
 
         if (!media || media.length === 0) {
             let viewOnceMsg = q.msg?.message?.imageMessage ||
-                              q.msg?.message?.videoMessage ||
-                              q.message?.imageMessage ||
-                              q.message?.videoMessage ||
-                              (q.msg && (q.msg.imageMessage || q.msg.videoMessage)) ||
-                              q.msg || q
+                q.msg?.message?.videoMessage ||
+                q.message?.imageMessage ||
+                q.message?.videoMessage ||
+                (q.msg && (q.msg.imageMessage || q.msg.videoMessage)) ||
+                q.msg || q
 
             let mime = viewOnceMsg.mimetype || q.mimetype || q.mediaType || ''
             if (viewOnceMsg?.mediaKey) {
