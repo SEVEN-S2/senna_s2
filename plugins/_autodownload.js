@@ -1,0 +1,454 @@
+import fg from 'fg-senna'
+import { downloadYT } from '../lib/ytHelper.js'
+import fs from 'fs'
+import path from 'path'
+import { exec } from 'child_process'
+import { promisify } from 'util'
+
+const execAsync = promisify(exec)
+
+export async function before(m, { conn, isOwner }) {
+    if (m.isBaileys || m.fromMe || !m.text) return false
+    let chat = global.db.data.chats[m.chat]
+    const autodlAtivo = m.isGroup ? !!(chat && chat.autodl) : true
+    if (!autodlAtivo) return false
+
+    let text = m.text
+
+    if (global.prefix.test(text)) return false
+
+    const tiktokRegex = /https?:\/\/(www\.|v[mt]\.|vt\.)?tiktok\.com\/[^\s]*/i
+    const facebookRegex = /https?:\/\/(www\.|web\.|m\.)?(facebook\.com|fb\.watch|fb\.com)\/[^\s]*/i
+    const instagramRegex = /https?:\/\/(www\.)?instagram\.com\/(p|reel|tv|stories)\/[^\s]+|https?:\/\/instagr\.am\/[^\s]+/i
+    const mediafireRegex = /https?:\/\/(www\.)?mediafire\.com\/file\/[^\s]*/i
+    const megaRegex = /https?:\/\/mega\.nz\/file\/[^\s]*/i
+    const youtubeRegex = /https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be)\/[^\s]*/i
+    const twitterRegex = /https?:\/\/(www\.)?(twitter\.com|x\.com)\/[^\s]+/i
+    const pinterestRegex = /https?:\/\/(www\.)?(pinterest\.com\/pin|pin\.it)\/[^\s]*/i
+
+    let found = false
+
+    if (tiktokRegex.test(text)) {
+        let link = text.match(tiktokRegex)[0]
+        found = true
+        m.react(rwait)
+        try {
+            let success = false
+
+            try {
+                let data = await fg.tiktok(link)
+                if (data && data.result && data.result.images) {
+                    for (let img of data.result.images) {
+                        await conn.sendFile(m.chat, img, 'tiktok.png', '', m, null, fwc)
+                    }
+                    success = true
+                    m.react(done)
+                } else if (data && data.result && data.result.play) {
+                    await conn.sendFile(m.chat, data.result.play, 'tiktok.mp4', `✅ *Auto DL: TikTok*`, m, null, fwc)
+                    success = true
+                    m.react(done)
+                }
+            } catch (ee) {
+                console.error('fg-senna TikTok failed:', ee.message)
+            }
+
+            if (!success) {
+                const TEMP_DIR = path.join(process.cwd(), 'tmp')
+                if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true })
+                const rawPath = path.join(TEMP_DIR, `tk_raw_${Date.now()}.mp4`)
+                const finalPath = path.join(TEMP_DIR, `tk_${Date.now()}.mp4`)
+
+                try {
+                    await execAsync(`yt-dlp -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" --merge-output-format mp4 -o "${rawPath}" "${link}"`, { timeout: 120000 })
+                    if (fs.existsSync(rawPath)) {
+                        await execAsync(`ffmpeg -i "${rawPath}" -c:v copy -c:a aac -b:a 128k -movflags +faststart -y "${finalPath}"`, { timeout: 180000 })
+                        if (fs.existsSync(rawPath)) fs.unlinkSync(rawPath)
+                        if (fs.existsSync(finalPath)) {
+                            await conn.sendFile(m.chat, finalPath, 'tiktok.mp4', `✅ *Auto DL: TikTok (HD)*`, m, null, fwc)
+                            if (fs.existsSync(finalPath)) fs.unlinkSync(finalPath)
+                            success = true
+                            m.react(done)
+                        }
+                    }
+                } catch (ee) {
+                    console.error('yt-dlp TikTok failed')
+                }
+            }
+
+            if (!success) throw new Error('Não foi possível obter o link do vídeo TikTok')
+        } catch (e) {
+            console.error('AutoDL TikTok Error:', e)
+            m.react('❌')
+            m.reply(`❎ Erro ao baixar TikTok: ${e.message}`)
+        }
+    }
+
+    if (!found && instagramRegex.test(text)) {
+        let link = text.match(instagramRegex)[0]
+        found = true
+        m.react(rwait)
+        try {
+            let data = await fg.igdl(link).catch(() => null)
+            let success = false
+
+            let mediaList = []
+            if (data?.result && Array.isArray(data.result) && data.result.length > 0) {
+                mediaList = data.result.map(i => i.url || i.dl_url).filter(Boolean)
+            } else if (data?.dl_url) {
+                mediaList = [data.dl_url]
+            } else if (data?.url) {
+                mediaList = [data.url]
+            }
+
+            if (mediaList.length > 0) {
+                const axios = (await import('axios')).default
+                const sharp = (await import('sharp')).default
+                for (let mediaUrl of mediaList) {
+                    try {
+                        const res = await axios.get(mediaUrl, {
+                            responseType: 'arraybuffer',
+                            headers: { 'User-Agent': 'TelegramBot (like TwitterBot)' },
+                            timeout: 45000
+                        })
+                        let buffer = Buffer.from(res.data)
+                        const isVideo = mediaUrl.includes('.mp4') || (res.headers['content-type'] && res.headers['content-type'].includes('video')) || buffer.toString('utf8', 4, 12).includes('ftyp')
+                        if (!isVideo) {
+                            if (buffer.slice(0, 4).toString() === 'RIFF') {
+                                try {
+                                    buffer = await sharp(buffer).jpeg({ quality: 92 }).toBuffer()
+                                } catch (_) {}
+                            }
+                            await conn.sendFile(m.chat, buffer, 'instagram.jpg', `✅ *Auto DL: Instagram*`, m, null, fwc)
+                        } else {
+                            await conn.sendFile(m.chat, buffer, 'instagram.mp4', `✅ *Auto DL: Instagram*`, m, null, fwc)
+                        }
+                        success = true
+                    } catch (dlErr) {
+                        console.error('❌ [AutoDL IG] Erro ao baixar buffer:', dlErr.message)
+                    }
+                }
+                if (success) {
+                    m.react(done)
+                    return
+                }
+            }
+
+            if (!success) {
+                const TEMP_DIR = path.join(process.cwd(), 'tmp')
+                if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true })
+                const rawPath = path.join(TEMP_DIR, `ig_raw_${Date.now()}.mp4`)
+                const finalPath = path.join(TEMP_DIR, `ig_${Date.now()}.mp4`)
+
+                try {
+                    let cookiesFlag = ''
+                    const cookiesPath = path.join(process.cwd(), 'cookies.txt')
+                    if (fs.existsSync(cookiesPath)) cookiesFlag = `--cookies "${cookiesPath}"`
+
+                    await execAsync(`yt-dlp ${cookiesFlag} -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" --merge-output-format mp4 -o "${rawPath}" "${link}"`, { timeout: 120000 })
+                    if (fs.existsSync(rawPath)) {
+                        await execAsync(`ffmpeg -i "${rawPath}" -c:v copy -c:a aac -b:a 128k -movflags +faststart -y "${finalPath}"`, { timeout: 180000 })
+                        if (fs.existsSync(rawPath)) fs.unlinkSync(rawPath)
+                        if (fs.existsSync(finalPath)) {
+                            await conn.sendFile(m.chat, finalPath, 'ig.mp4', `✅ *Auto DL: Instagram (HD)*`, m, null, fwc)
+                            if (fs.existsSync(finalPath)) fs.unlinkSync(finalPath)
+                            success = true
+                        }
+                    }
+                } catch(e) {
+                    console.error('❌ [AutoDL IG] yt-dlp falhou:', e.message)
+                    try { if (fs.existsSync(rawPath)) fs.unlinkSync(rawPath) } catch(_) {}
+                    try { if (fs.existsSync(finalPath)) fs.unlinkSync(finalPath) } catch(_) {}
+                }
+            }
+
+            if (!success) {
+                const fetch = (await import('node-fetch')).default;
+                let url = data?.dl_url || (data?.result && data.result[0]?.url)
+
+                if (!url) {
+                    try {
+                        let rz = await fetch(`https://api.ryzendesu.vip/api/downloader/igdl?url=${encodeURIComponent(link)}`, { timeout: 10000 }).then(v => v.json()).catch(() => null);
+                        url = rz?.url || rz?.data?.url || rz?.result?.[0]?.url;
+                    } catch(e) {}
+                }
+
+                if (!url) {
+                    try {
+                        let sp = await fetch(`https://api.siputzx.my.id/api/d/instagram?url=${encodeURIComponent(link)}`, { timeout: 10000 }).then(v => v.json()).catch(() => null);
+                        url = sp?.data?.[0]?.url || sp?.data?.url;
+                    } catch(e) {}
+                }
+
+                if (url) {
+                    try {
+                        await conn.sendFile(m.chat, url, 'ig.mp4', `✅ *Auto DL: Instagram*`, m, null, fwc)
+                        success = true
+                    } catch(e) {
+                        console.error('❌ [AutoDL IG] Envio da API falhou:', e.message)
+                    }
+                }
+            }
+
+            if (!success) throw new Error('Não foi possível obter a URL de download em nenhum motor.')
+            m.react(done)
+        } catch (e) {
+            console.error('AutoDL Instagram Error:', e)
+            m.react('❌')
+            m.reply(`❎ Erro ao baixar Instagram: ${e.message}`)
+        }
+    }
+
+    if (!found && facebookRegex.test(text)) {
+        let link = text.match(facebookRegex)[0]
+        found = true
+        m.react(rwait)
+        const TEMP_DIR = path.join(process.cwd(), 'tmp')
+        if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true })
+        const rawPath = path.join(TEMP_DIR, `fb_raw_${Date.now()}.mp4`)
+        const finalPath = path.join(TEMP_DIR, `fb_${Date.now()}.mp4`)
+
+        try {
+            await execAsync(`yt-dlp -f "b[vcodec^=avc]/b[vcodec^=h264]/hd/sd/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best" --merge-output-format mp4 -o "${rawPath}" "${link}"`, { timeout: 120000 })
+            if (fs.existsSync(rawPath)) {
+                let codec = 'h264'
+                try {
+                    const { stdout } = await execAsync(`ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 "${rawPath}"`)
+                    if (stdout) codec = stdout.trim()
+                } catch(e){}
+
+                let ffmpegCmd = codec === 'h264'
+                    ? `ffmpeg -i "${rawPath}" -c:v copy -c:a aac -b:a 128k -movflags +faststart -y "${finalPath}"`
+                    : `ffmpeg -i "${rawPath}" -c:v libx264 -preset fast -crf 28 -c:a aac -b:a 128k -movflags +faststart -y "${finalPath}"`
+
+                await execAsync(ffmpegCmd, { timeout: 180000 })
+                if (fs.existsSync(rawPath)) fs.unlinkSync(rawPath)
+                if (fs.existsSync(finalPath)) {
+                    await conn.sendFile(m.chat, finalPath, 'fb.mp4', `✅ *Auto DL: Facebook*`, m, null, fwc)
+                    fs.unlinkSync(finalPath)
+                    m.react(done)
+                } else {
+                    throw new Error('Falha ao gerar arquivo processado.')
+                }
+            } else {
+                throw new Error('Falha ao baixar vídeo do Facebook via yt-dlp.')
+            }
+        } catch (e) {
+            if (fs.existsSync(rawPath)) try { fs.unlinkSync(rawPath) } catch(_) {}
+            if (fs.existsSync(finalPath)) try { fs.unlinkSync(finalPath) } catch(_) {}
+            console.error('AutoDL Facebook Error:', e)
+            m.react('❌')
+            m.reply(`❎ Erro ao baixar Facebook: Verifique se o link é público.`)
+        }
+    }
+
+    if (!found && twitterRegex.test(text)) {
+        let link = text.match(twitterRegex)[0]
+        found = true
+        m.react(rwait)
+        try {
+            let tweetIdMatch = link.match(/\/status\/(\d+)/);
+            if (!tweetIdMatch) throw new Error('Link do Twitter inválido ou sem ID do post.');
+
+            let id = tweetIdMatch[1];
+            let directUrl = null;
+            let success = false;
+            const fetch = (await import('node-fetch')).default;
+
+            const safeSend = async (file, fileName, cap, opts) => {
+                for (let attempt = 1; attempt <= 3; attempt++) {
+                    try {
+                        await conn.sendFile(m.chat, file, fileName, cap, m, null, opts)
+                        return true
+                    } catch (err) {
+                        console.error(`[Twitter AutoDL Send Attempt ${attempt}/3 failed]: ${err.message}`)
+                        if (attempt === 3) throw err
+                        await new Promise(res => setTimeout(res, 2500))
+                    }
+                }
+                return false
+            }
+
+            try {
+                let vx = await fetch(`https://api.vxtwitter.com/Twitter/status/${id}`).then(v => v.json());
+                if (vx && vx.media_extended && vx.media_extended.length > 0) {
+                    let videoMedia = vx.media_extended.find(xx => xx.type === 'video');
+                    if (videoMedia) directUrl = videoMedia.url;
+                } else if (vx && vx.mediaURLs && vx.mediaURLs.length > 0) {
+                    directUrl = vx.mediaURLs[0];
+                }
+            } catch(e) { }
+
+            if (!directUrl) {
+                try {
+                    let fx = await fetch(`https://api.fxtwitter.com/Twitter/status/${id}`).then(v => v.json());
+                    let videoMedia = fx?.tweet?.media?.video;
+                    if (videoMedia && videoMedia.url) { directUrl = videoMedia.url; }
+                } catch(e) { }
+            }
+
+            if (directUrl) {
+                try {
+                    const axios = (await import('axios')).default
+                    let headRes = await axios.head(directUrl, { timeout: 8000 }).catch(() => null)
+                    if (headRes && headRes.status === 200) {
+                        let contentLength = parseInt(headRes.headers['content-length'] || '0')
+                        let isDoc = contentLength > 60 * 1024 * 1024
+                        success = await safeSend(directUrl, 'twitter.mp4', `✅ *Auto DL: Twitter/X*`, isDoc ? { asDocument: true } : fwc)
+                    }
+                } catch(e) {
+                    console.error('Enviar directUrl Twitter falhou:', e.message)
+                }
+            }
+
+            if (!success) {
+                try {
+                    const { downloadCobalt } = await import('../lib/ytHelper.js')
+                    let cobaltRes = await downloadCobalt(link)
+                    if (cobaltRes) {
+                        if (cobaltRes.isPicker) {
+                            for (let url of cobaltRes.items) {
+                                await safeSend(url, 'twitter.mp4', `✅ *Auto DL: Twitter/X (Cobalt)*`, fwc)
+                            }
+                            success = true;
+                        } else if (fs.existsSync(cobaltRes.filePath)) {
+                            let stats = fs.statSync(cobaltRes.filePath)
+                            let isDoc = stats.size > 60 * 1024 * 1024
+                            success = await safeSend(cobaltRes.filePath, cobaltRes.title || 'twitter.mp4', `✅ *Auto DL: Twitter/X (Cobalt)*`, isDoc ? { asDocument: true } : fwc)
+                            if (fs.existsSync(cobaltRes.filePath)) fs.unlinkSync(cobaltRes.filePath)
+                        }
+                    }
+                } catch(e) { }
+            }
+
+            if (!success) {
+                const TEMP_DIR = path.join(process.cwd(), 'tmp')
+                if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true })
+                const rawPath = path.join(TEMP_DIR, `tw_raw_${Date.now()}.mp4`)
+                const finalPath = path.join(TEMP_DIR, `tw_${Date.now()}.mp4`)
+
+                try {
+                    await execAsync(`yt-dlp -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" --merge-output-format mp4 -o "${rawPath}" "${link}"`, { timeout: 180000 })
+                    if (fs.existsSync(rawPath)) {
+                        await execAsync(`ffmpeg -i "${rawPath}" -c:v copy -c:a aac -b:a 128k -movflags +faststart -y "${finalPath}"`, { timeout: 300000 })
+                        if (fs.existsSync(rawPath)) fs.unlinkSync(rawPath)
+                        if (fs.existsSync(finalPath)) {
+                            let stats = fs.statSync(finalPath)
+                            let isDoc = stats.size > 60 * 1024 * 1024
+                            success = await safeSend(finalPath, 'twitter.mp4', `✅ *Auto DL: Twitter/X (HD)*`, isDoc ? { asDocument: true } : fwc)
+                            if (fs.existsSync(finalPath)) fs.unlinkSync(finalPath)
+                        }
+                    }
+                } catch (ee) {
+                    console.error('yt-dlp Twitter local failed:', ee.message)
+                    if (fs.existsSync(rawPath)) fs.unlinkSync(rawPath)
+                    if (fs.existsSync(finalPath)) fs.unlinkSync(finalPath)
+                }
+            }
+
+            if (!success) throw new Error('Todas as conexões nativas do Twitter falharam.');
+            m.react(done)
+        } catch (e) {
+            console.error('AutoDL Twitter Error:', e)
+            m.react('❌')
+            m.reply(`❎ Erro ao processar Twitter via Auto DL.`)
+        }
+    }
+
+    if (!found && mediafireRegex.test(text)) {
+        let link = text.match(mediafireRegex)[0]
+        found = true
+        m.react(rwait)
+        try {
+            let data = await fg.mediafire(link)
+            if (data.url) {
+                let size = parseInt(data.size)
+                if (size > 1024 && data.size.includes('MB') && !isOwner) return m.reply('✳️ Arquivo muito grande para AutoDL (Max 1GB). Use o comando .mediafire para limites de até 3GB.')
+                await conn.sendFile(m.chat, data.url, data.filename, `✅ *Auto DL: Mediafire*`, m, null, { asDocument: true })
+                m.react(done)
+            }
+        } catch (e) {
+            console.error('AutoDL Mediafire Error:', e)
+            m.react('❌')
+            m.reply(`❎ Erro ao baixar Mediafire: ${e.message}`)
+        }
+    }
+
+    if (!found && megaRegex.test(text)) {
+        let link = text.match(megaRegex)[0]
+        found = true
+        m.react(rwait)
+        try {
+            let data = await fg.mega(link)
+            if (data.download) {
+                await conn.sendFile(m.chat, data.download, data.filename, `✅ *Auto DL: MEGA*`, m, null, { asDocument: true })
+                m.react(done)
+            }
+        } catch (e) {
+            console.error('AutoDL MEGA Error:', e)
+            m.react('❌')
+            m.reply(`❎ Erro ao baixar MEGA: ${e.message}`)
+        }
+    }
+
+    if (!found && youtubeRegex.test(text)) {
+        let link = text.match(youtubeRegex)[0]
+        found = true
+        m.react(rwait)
+        try {
+            let { filePath, size, title } = await downloadYT(link, 'video')
+            if (fs.existsSync(filePath)) {
+
+                if (size > 2000 * 1024 * 1024) {
+                    fs.unlinkSync(filePath)
+                    return m.reply('✳️ O arquivo superou o limite de 2GB do WhatsApp.')
+                }
+
+                await conn.sendFile(m.chat, filePath, `${title || 'video'}.mp4`, `✅ *Auto DL: YouTube (HD)*`, m, null, { asDocument: true })
+
+                if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
+                m.react(done)
+            }
+        } catch (e) {
+            console.error('AutoDL YouTube Error:', e)
+            m.react('❌')
+
+            if (e.message.includes('upload')) {
+                m.reply(`❎ Erro de Transmissão: O ficheiro é muito grande ou a conexão com o WhatsApp caiu. Tente novamente.`)
+            } else {
+                m.reply(`❎ Erro ao baixar YouTube: ${e.message}`)
+            }
+        }
+    }
+
+    if (!found && pinterestRegex.test(text)) {
+        let link = text.match(pinterestRegex)[0]
+        found = true
+        m.react(rwait)
+        try {
+            const { downloadCobalt } = await import('../lib/ytHelper.js')
+            let cobaltRes = await downloadCobalt(link)
+            if (cobaltRes) {
+                if (cobaltRes.isPicker) {
+                    for (let url of cobaltRes.items) {
+                        await conn.sendFile(m.chat, url, 'pinterest.png', `✅ *Auto DL: Pinterest*`, m, null, fwc)
+                    }
+                    m.react(done)
+                } else if (fs.existsSync(cobaltRes.filePath)) {
+                    await conn.sendFile(m.chat, cobaltRes.filePath, cobaltRes.title || 'pinterest.mp4', `✅ *Auto DL: Pinterest*`, m, null, fwc)
+                    if (fs.existsSync(cobaltRes.filePath)) fs.unlinkSync(cobaltRes.filePath)
+                    m.react(done)
+                } else {
+                    throw new Error('Nenhum arquivo retornado do Cobalt.')
+                }
+            } else {
+                throw new Error('API do Cobalt offline.')
+            }
+        } catch (e) {
+            console.error('AutoDL Pinterest Error:', e)
+            m.react('❌')
+            m.reply(`❎ Erro ao baixar Pinterest: ${e.message}`)
+        }
+    }
+
+    return found
+}
