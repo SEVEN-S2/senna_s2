@@ -17,101 +17,101 @@ import { makeWASocket } from "../lib/simple.js"
 if (!(global.conns instanceof Array)) global.conns = []
 
 let handler = async (m, { conn: parent, args, usedPrefix, command, isOwner, isPrems }) => {
-    const botJid = parent.user?.jid || (parent.user?.id ? parent.decodeJid(parent.user.id) : '')
-    const botSettings = (botJid && global.db.data.settings[botJid]) ? global.db.data.settings[botJid] : {}
+  const botJid = parent.user?.jid || (parent.user?.id ? parent.decodeJid(parent.user.id) : '')
+  const botSettings = (botJid && global.db.data.settings[botJid]) ? global.db.data.settings[botJid] : {}
 
 
-    if (!((args[0] && args[0] == 'plz') || (await global.conn).user.jid == parent.user.jid)) {
-        throw `📌 Este comando solo puede ser usado en el bot principal\n\n wa.me/${global.conn.user.jid.split`@`[0]}?text=${usedPrefix}botclone`
-    }
-
-async function startBot() {
-
-let authFolderB
-let nameR = `senna_${crypto.randomBytes(10).toString('base64').replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 6)}`
-
-if (args[0] && fs.existsSync(`./bebots/${args[0]}`)) {
-
-  authFolderB = args[0]
-
-  if (!fs.existsSync(`./bebots/${authFolderB}/creds.json`)) {
-    fs.rmSync(`./bebots/${authFolderB}`, { recursive: true, force: true })
-    authFolderB = nameR
-    fs.mkdirSync(`./bebots/${authFolderB}`, { recursive: true })
+  if (!((args[0] && args[0] == 'plz') || (await global.conn).user.jid == parent.user.jid)) {
+    throw `📌 Este comando solo puede ser usado en el bot principal\n\n wa.me/${global.conn.user.jid.split`@`[0]}?text=${usedPrefix}botclone`
   }
 
-} else {
+  async function startBot() {
 
-  authFolderB = nameR
-  fs.mkdirSync(`./bebots/${authFolderB}`, { recursive: true })
+    let authFolderB
+    let nameR = `senna_${crypto.randomBytes(10).toString('base64').replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 6)}`
 
-}
+    if (args[0] && fs.existsSync(`./bebots/${args[0]}`)) {
 
-const { state, saveCreds } = await useMultiFileAuthState(`./bebots/${authFolderB}`)
+      authFolderB = args[0]
 
-const msgRetryCounterCache = new NodeCache()
-const userDevicesCache = new NodeCache({ stdTTL: 0, checkperiod: 0 })
+      if (!fs.existsSync(`./bebots/${authFolderB}/creds.json`)) {
+        fs.rmSync(`./bebots/${authFolderB}`, { recursive: true, force: true })
+        authFolderB = nameR
+        fs.mkdirSync(`./bebots/${authFolderB}`, { recursive: true })
+      }
 
-const { version } = await fetchLatestBaileysVersion()
+    } else {
 
-let phoneNumber
-try {
-phoneNumber = await parent.getNum(m.sender)
-} catch {
-phoneNumber = null
-}
+      authFolderB = nameR
+      fs.mkdirSync(`./bebots/${authFolderB}`, { recursive: true })
 
-const methodCode = !!phoneNumber || process.argv.includes("code")
+    }
 
-const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
+    const { state, saveCreds } = await useMultiFileAuthState(`./bebots/${authFolderB}`)
 
-const connectionOptions = {
-logger: pino({ level: "silent" }),
-version,
-auth: {
-creds: state.creds,
-keys: makeCacheableSignalKeyStore(
-state.keys,
-pino({ level: "fatal" })
-)
-},
-markOnlineOnConnect: true,
-generateHighQualityLinkPreview: true,
-msgRetryCounterCache,
-userDevicesCache,
+    const msgRetryCounterCache = new NodeCache()
+    const userDevicesCache = new NodeCache({ stdTTL: 0, checkperiod: 0 })
 
-getMessage: async (key) => {
-try {
-let jid = jidNormalizedUser(key.remoteJid)
-let msg = await store?.loadMessage(jid, key.id)
-return msg?.message || ""
-} catch {
-return ""
-}
-}
-}
+    const { version } = await fetchLatestBaileysVersion()
 
-let conn = makeWASocket(connectionOptions)
+    let phoneNumber
+    try {
+      phoneNumber = await parent.getNum(m.sender)
+    } catch {
+      phoneNumber = null
+    }
 
-if (methodCode && !conn.authState.creds.registered) {
+    const methodCode = !!phoneNumber || process.argv.includes("code")
 
-if (!phoneNumber) return
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
 
-let cleanedNumber = phoneNumber.replace(/[^0-9]/g, "")
+    const connectionOptions = {
+      logger: pino({ level: "silent" }),
+      version,
+      auth: {
+        creds: state.creds,
+        keys: makeCacheableSignalKeyStore(
+          state.keys,
+          pino({ level: "fatal" })
+        )
+      },
+      markOnlineOnConnect: true,
+      generateHighQualityLinkPreview: true,
+      msgRetryCounterCache,
+      userDevicesCache,
 
-setTimeout(async () => {
+      getMessage: async (key) => {
+        try {
+          let jid = jidNormalizedUser(key.remoteJid)
+          let msg = await store?.loadMessage(jid, key.id)
+          return msg?.message || ""
+        } catch {
+          return ""
+        }
+      }
+    }
 
-try {
+    let conn = makeWASocket(connectionOptions)
 
-let codeBot = await conn.requestPairingCode(cleanedNumber)
+    if (methodCode && !conn.authState.creds.registered) {
 
-codeBot = codeBot?.match(/.{1,4}/g)?.join("-") || codeBot
+      if (!phoneNumber) return
 
-await parent.sendFile(
-m.chat,
-"https://i.ibb.co/SKKdvRb/code.jpg",
-"code.jpg",
-`➤ *Código de Vinculación*
+      let cleanedNumber = phoneNumber.replace(/[^0-9]/g, "")
+
+      setTimeout(async () => {
+
+        try {
+
+          let codeBot = await conn.requestPairingCode(cleanedNumber)
+
+          codeBot = codeBot?.match(/.{1,4}/g)?.join("-") || codeBot
+
+          await parent.sendFile(
+            m.chat,
+            "https://i.ibb.co/SKKdvRb/code.jpg",
+            "code.jpg",
+            `➤ *Código de Vinculación*
 
 *${codeBot}*
 
@@ -122,138 +122,138 @@ m.chat,
 5. Introduce el código
 
 ⚠️ El código solo funciona para este número.`,
-m
-)
+            m
+          )
 
-} catch (err) {
-console.log("Error generando pairing code:", err)
-}
+        } catch (err) {
+          console.log("Error generando pairing code:", err)
+        }
 
-}, 3000)
+      }, 3000)
 
-}
+    }
 
-conn.isInit = false
-let isInit = true
+    conn.isInit = false
+    let isInit = true
 
-async function connectionUpdate(update) {
+    async function connectionUpdate(update) {
 
-const { connection, lastDisconnect, isNewLogin } = update
-if (isNewLogin) conn.isInit = true
+      const { connection, lastDisconnect, isNewLogin } = update
+      if (isNewLogin) conn.isInit = true
 
-const code =
-lastDisconnect?.error?.output?.statusCode ||
-lastDisconnect?.error?.output?.payload?.statusCode
+      const code =
+        lastDisconnect?.error?.output?.statusCode ||
+        lastDisconnect?.error?.output?.payload?.statusCode
 
-if (code && code !== DisconnectReason.loggedOut && conn?.ws.socket == null) {
+      if (code && code !== DisconnectReason.loggedOut && conn?.ws.socket == null) {
 
-let i = global.conns.indexOf(conn)
-if (i < 0) return console.log(await reloadHandler(true).catch(console.error))
+        let i = global.conns.indexOf(conn)
+        if (i < 0) return console.log(await reloadHandler(true).catch(console.error))
 
-delete global.conns[i]
-global.conns.splice(i, 1)
+        delete global.conns[i]
+        global.conns.splice(i, 1)
 
-if (code === DisconnectReason.connectionClosed) {
+        if (code === DisconnectReason.connectionClosed) {
 
-parent.sendMessage(m.chat, {
-text: "⛔ La conexión se cerró, tendrás que reconectarte Enviando o ID"
-}, { quoted: m })
+          parent.sendMessage(m.chat, {
+            text: "⛔ La conexión se cerró, tendrás que reconectarte Enviando o ID"
+          }, { quoted: m })
 
-}
+        }
 
-}
+      }
 
-if (connection === "open") {
+      if (connection === "open") {
 
-conn.isInit = true
-global.conns.push(conn)
+        conn.isInit = true
+        global.conns.push(conn)
 
-let logMsg = `
+        let logMsg = `
 ┌─⊷ 🤖 *SUB-BOT CONECTADO*
 ▢ 🤖 Bot: wa.me/${conn.user?.id?.split(":")[0]}
 ▢ 🕒 Hora: ${new Date().toLocaleString("pt-MZ", { timeZone: "Africa/Maputo" })}
 └──────────────
 `
 
-await parent.reply(canal_logid, logMsg, m, fwc)
+        await parent.reply(canal_logid, logMsg, m, fwc)
 
-await parent.sendMessage(m.chat, {
-text: args[0]
-? "✅ Conectado con éxito"
-: `✅ *Conectado con éxito!*
+        await parent.sendMessage(m.chat, {
+          text: args[0]
+            ? "✅ Conectado con éxito"
+            : `✅ *Conectado con éxito!*
 
 En unos segundos te mandaremos el *ID* para reconectarte`
-}, { quoted: m })
+        }, { quoted: m })
 
-await sleep(5000)
+        await sleep(5000)
 
-if (args[0]) return
+        if (args[0]) return
 
-await parent.sendMessage(conn.user.jid, { text: "✅ Conectado con éxito" })
-await parent.sendMessage(conn.user.jid, {
-text: `${usedPrefix + command} ${authFolderB}`
-})
+        await parent.sendMessage(conn.user.jid, { text: "✅ Conectado con éxito" })
+        await parent.sendMessage(conn.user.jid, {
+          text: `${usedPrefix + command} ${authFolderB}`
+        })
 
-}
+      }
 
-}
+    }
 
-let handlerModule = await import("../handler.js")
+    let handlerModule = await import("../handler.js")
 
-async function reloadHandler(restatConn = false) {
+    async function reloadHandler(restatConn = false) {
 
-try {
-const Handler = await import(`../handler.js?update=${Date.now()}`)
-if (Object.keys(Handler || {}).length) handlerModule = Handler
-} catch (e) {
-console.error(e)
-}
+      try {
+        const Handler = await import(`../handler.js?update=${Date.now()}`)
+        if (Object.keys(Handler || {}).length) handlerModule = Handler
+      } catch (e) {
+        console.error(e)
+      }
 
-if (restatConn) {
-try { conn.ws.close() } catch {}
-conn.ev.removeAllListeners()
-conn = makeWASocket(connectionOptions)
-isInit = true
-}
+      if (restatConn) {
+        try { conn.ws.close() } catch { }
+        conn.ev.removeAllListeners()
+        conn = makeWASocket(connectionOptions)
+        isInit = true
+      }
 
-if (!isInit) {
+      if (!isInit) {
 
-conn.ev.off("messages.upsert", conn.handler)
-conn.ev.off("group-participants.update", conn.participantsUpdate)
-conn.ev.off("groups.update", conn.groupsUpdate)
-conn.ev.off("message.delete", conn.onDelete)
-conn.ev.off("connection.update", conn.connectionUpdate)
-conn.ev.off("creds.update", conn.credsUpdate)
+        conn.ev.off("messages.upsert", conn.handler)
+        conn.ev.off("group-participants.update", conn.participantsUpdate)
+        conn.ev.off("groups.update", conn.groupsUpdate)
+        conn.ev.off("message.delete", conn.onDelete)
+        conn.ev.off("connection.update", conn.connectionUpdate)
+        conn.ev.off("creds.update", conn.credsUpdate)
 
-}
+      }
 
-conn.welcome = global.conn?.welcome || ""
-conn.bye = global.conn?.bye || ""
-conn.spromote = global.conn?.spromote || ""
-conn.sdemote = global.conn?.sdemote || ""
+      conn.welcome = global.conn?.welcome || ""
+      conn.bye = global.conn?.bye || ""
+      conn.spromote = global.conn?.spromote || ""
+      conn.sdemote = global.conn?.sdemote || ""
 
-conn.handler = handlerModule.handler.bind(conn)
-conn.participantsUpdate = handlerModule.participantsUpdate.bind(conn)
-conn.groupsUpdate = handlerModule.groupsUpdate.bind(conn)
-conn.connectionUpdate = connectionUpdate.bind(conn)
-conn.credsUpdate = saveCreds.bind(conn)
+      conn.handler = handlerModule.handler.bind(conn)
+      conn.participantsUpdate = handlerModule.participantsUpdate.bind(conn)
+      conn.groupsUpdate = handlerModule.groupsUpdate.bind(conn)
+      conn.connectionUpdate = connectionUpdate.bind(conn)
+      conn.credsUpdate = saveCreds.bind(conn)
 
-conn.ev.on("messages.upsert", conn.handler)
-conn.ev.on("group-participants.update", conn.participantsUpdate)
-conn.ev.on("groups.update", conn.groupsUpdate)
-conn.ev.on("connection.update", conn.connectionUpdate)
-conn.ev.on("creds.update", conn.credsUpdate)
+      conn.ev.on("messages.upsert", conn.handler)
+      conn.ev.on("group-participants.update", conn.participantsUpdate)
+      conn.ev.on("groups.update", conn.groupsUpdate)
+      conn.ev.on("connection.update", conn.connectionUpdate)
+      conn.ev.on("creds.update", conn.credsUpdate)
 
-isInit = false
-return true
+      isInit = false
+      return true
 
-}
+    }
 
-await reloadHandler(false)
+    await reloadHandler(false)
 
-}
+  }
 
-startBot()
+  startBot()
 
 }
 
@@ -264,5 +264,5 @@ handler.command = ["bebot", "serbot", "jadibot", "botclone", "clonebot"]
 export default handler
 
 function sleep(ms) {
-return new Promise(resolve => setTimeout(resolve, ms))
+  return new Promise(resolve => setTimeout(resolve, ms))
 }
