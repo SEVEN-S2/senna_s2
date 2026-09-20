@@ -39,7 +39,7 @@ handler.help = ['xvideos <busca|link>', 'xvideodl <link>']
 handler.tags = ['nsfw', 'prem']
 handler.command = ['xvideossearch', 'xvideo', 'xvideos', 'xvideodl']
 
-handler.group = true
+handler.group = false
 handler.premium = true
 handler.register = false
 
