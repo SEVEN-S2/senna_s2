@@ -20,15 +20,6 @@ let handler = async (m, { conn: parent, args, usedPrefix, command, isOwner, isPr
     const botJid = parent.user?.jid || (parent.user?.id ? parent.decodeJid(parent.user.id) : '')
     const botSettings = (botJid && global.db.data.settings[botJid]) ? global.db.data.settings[botJid] : {}
 
-    if (!botSettings.botclone && !isOwner) {
-        throw `❌ *A criação de Sub-Bots (Clones) está desativada no momento!*\n\nO proprietário do bot desativou este recurso temporariamente.`
-    }
-
-    let user = global.db.data.users[m.sender] || {}
-    let isUserPrem = isPrems || user.prem || isOwner
-    if (!isUserPrem) {
-        throw `👑 *Recurso Premium!*\n\nA criação de Sub-Bot é exclusiva para usuários *Premium* ou para o Dono do Bot.\n\nAdquira seu plano Premium com o dono para utilizar este recurso.`
-    }
 
     if (!((args[0] && args[0] == 'plz') || (await global.conn).user.jid == parent.user.jid)) {
         throw `📌 Este comando solo puede ser usado en el bot principal\n\n wa.me/${global.conn.user.jid.split`@`[0]}?text=${usedPrefix}botclone`
