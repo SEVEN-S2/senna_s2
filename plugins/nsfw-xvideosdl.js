@@ -1,14 +1,14 @@
 import fetch from 'node-fetch'
 import fg from 'fg-senna'
-let handler = async (m, {conn, text, usedPrefix, command }) => {
+let handler = async (m, { conn, text, usedPrefix, command }) => {
     let chat = global.db.data.chats[m.chat]
 
     let user = global.db.data.users[m.sender].age
 
     if (!text) throw `✳️ Insira lo que desea buscar`
-   m.react(rwait)
+    m.react(rwait)
 
-   if (text.includes('http://') || text.includes('https://')) {
+    if (text.includes('http://') || text.includes('https://')) {
         if (!text.includes('xvideos.com')) return m.reply(`❎ Revisa que link sea correcto`)
 
         try {
@@ -19,19 +19,19 @@ let handler = async (m, {conn, text, usedPrefix, command }) => {
 *📌Titulo*: ${xv.title}
 *👍Likes* : ${xv.likes}
 `.trim(), m, false, { asDocument: chat.useDocument })
-    m.react(done)
-    } catch (e) {
-        m.reply(`🔴 Error`)
-    }
+            m.react(done)
+        } catch (e) {
+            m.reply(`🔴 Error`)
+        }
     } else {
 
-    try {
-    let res = await fg.sxvideos(text)
-    let fgg = res.map((v, i) => `📌 *Titulo* : ${v.title}\n⌚ *Duracion:* ${v.duration}\n*🔗Link:* ${v.url}\n`).join('─────────────────\n\n')
-    m.reply(fgg)
-    } catch (e) {
-    m.reply(`🔴 Error`, null, fwc)
-     }
+        try {
+            let res = await fg.sxvideos(text)
+            let fgg = res.map((v, i) => `📌 *Titulo* : ${v.title}\n⌚ *Duracion:* ${v.duration}\n*🔗Link:* ${v.url}\n`).join('─────────────────\n\n')
+            m.reply(fgg)
+        } catch (e) {
+            m.reply(`🔴 Error`, null, fwc)
+        }
     }
 
 }
@@ -41,6 +41,6 @@ handler.command = ['xvideossearch', 'xvideo', 'xvideos', 'xvideodl']
 
 handler.group = true
 handler.premium = true
-handler.register = true
+handler.register = false
 
 export default handler

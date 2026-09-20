@@ -14,7 +14,7 @@ import qrcode from 'qrcode'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const authFolder = path.join(__dirname, 'sessions')
-const phoneNumber = '258871828596'
+const phoneNumber = '258858496644'
 
 function cleanAuth() {
     try {
@@ -26,7 +26,7 @@ function cleanAuth() {
         } else {
             fs.mkdirSync(authFolder, { recursive: true })
         }
-    } catch (e) {}
+    } catch (e) { }
 }
 
 cleanAuth()
@@ -64,7 +64,7 @@ async function startPairingLoop() {
             try {
                 await qrcode.toFile(path.join(__dirname, 'qr.png'), qr)
                 await qrcode.toFile('C:\\Users\\USER\\.gemini\\antigravity\\brain\\5f8c69e8-5198-4817-8283-67e46ea95e28\\qr_code.png', qr)
-            } catch (e) {}
+            } catch (e) { }
         }
 
         if (connection === 'close') {
@@ -105,7 +105,7 @@ async function startPairingLoop() {
                 console.log(`📱 NÚMERO: +${phoneNumber}`)
                 console.log(`🔑 CÓDIGO DE PAREAMENTO: ${code}`)
                 console.log('========================================\n')
-            } catch (err) {}
+            } catch (err) { }
         }, 3000)
     }
 }
