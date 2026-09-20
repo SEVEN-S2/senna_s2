@@ -31,7 +31,7 @@ const defaultMenu = {
 🟢 Tempo ativo : %muptime
 %sbot
 ▢ ADD
-• https://wa.me/258879116693
+• https://wa.me/258875942284
 ────────────
 %readmore
   ≡ *LISTA DE MENUS*

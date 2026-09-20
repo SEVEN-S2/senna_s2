@@ -7,7 +7,7 @@ let handler = async(m, { conn, usedPrefix, command }) => {
 • *Email :* fbilionario01@gmail.com
 
 ▢ *WhatsApp*
-• *Link :* https://wa.me/258879116693
+• *Link :* https://wa.me/258875942284
 `
 let img = 'https://i.ibb.co/37FP2bk/donate.jpg'
 conn.sendFile(m.chat, img, 'img.jpg', don, m)

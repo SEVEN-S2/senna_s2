@@ -26,7 +26,7 @@ let handler = async (m, { conn, usedPrefix, command }) => {
 ▢ *YouTube :*
 - https://www.youtube.com/@wotersangumball
 ▢ *WhatsApp :*
-- https://wa.me/258879116693`
+- https://wa.me/258875942284`
 
     m.reply(message, null, fwc)
 }
